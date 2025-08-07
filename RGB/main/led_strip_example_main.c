@@ -20,33 +20,25 @@
 
 volatile uint32_t key_count = 0;
 static volatile uint64_t last_interrupt_time = 0;
+static void IRAM_ATTR gpio_isr_handler(void* arg);
 
 void led_init(void)
 {
-	gpio_config_t ioConfig = {
-		.pin_bit_mask = (1ull << LED_RED)|(1ull << LED_GREEN)|(1ull << LED_BLUE),
-		.mode = GPIO_MODE_OUTPUT,
-		.pull_up_en = GPIO_PULLUP_DISABLE,
-		.pull_down_en = GPIO_PULLDOWN_DISABLE,
-		.intr_type = GPIO_INTR_DISABLE,
-	};
-	ESP_ERROR_CHECK(gpio_config(&ioConfig));
-
-    ESP_ERROR_CHECK(gpio_set_level(LED_RED, 1));
-    ESP_ERROR_CHECK(gpio_set_level(LED_GREEN, 1));
-    ESP_ERROR_CHECK(gpio_set_level(LED_BLUE, 1));
+    gpio_set_direction(LED_RED, GPIO_MODE_OUTPUT);
+    gpio_set_direction(LED_GREEN, GPIO_MODE_OUTPUT);
+    gpio_set_direction(LED_BLUE, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_RED, 1);
+    gpio_set_level(LED_GREEN, 1);
+    gpio_set_level(LED_BLUE, 1);
 }
 
 void key_init(void)
 {
-    gpio_config_t ioConfig = {
-        .pin_bit_mask = (1ull << KEY_INPUT),
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-        .intr_type = GPIO_INTR_NEGEDGE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-    };
-    ESP_ERROR_CHECK(gpio_config(&ioConfig));
+    gpio_set_direction(KEY_INPUT, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(KEY_INPUT, GPIO_PULLUP_ONLY);
+    gpio_set_intr_type(KEY_INPUT, GPIO_INTR_NEGEDGE);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(KEY_INPUT, gpio_isr_handler, NULL);
 }
 
 gptimer_handle_t gptimer = NULL;
@@ -206,10 +198,6 @@ void app_main(void)
    led_init();
    key_init();
    timer_init();
-   
-   gpio_install_isr_service(0);
-   gpio_set_intr_type(KEY_INPUT, GPIO_INTR_NEGEDGE);
-   gpio_isr_handler_add(KEY_INPUT, gpio_isr_handler, NULL);
 
     while (1) {
         led_state_change(key_count);
